@@ -21,8 +21,8 @@ public class Agent1Service {
     }
 
     @Transactional
-    public PromptHistory generateAndSaveImagePrompt(Project project, String scriptContent) {
-        String fullPrompt = imagePromptAgent.generateImagePrompt(scriptContent);
+    public PromptHistory generateAndSaveImagePrompt(Project project, Integer cutOrder, String cutDescription) {
+        String fullPrompt = imagePromptAgent.generateImagePrompt(cutDescription);
         
         String positivePrompt = fullPrompt;
         String negativePrompt = "";
@@ -44,6 +44,7 @@ public class Agent1Service {
                 .type(PromptType.IMAGE_PROMPT)
                 .content(positivePrompt)
                 .negativeContent(negativePrompt)
+                .cutOrder(cutOrder)
                 .version(1)
                 .isApproved(false)
                 .build();

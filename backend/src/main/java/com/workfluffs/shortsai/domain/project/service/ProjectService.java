@@ -36,7 +36,7 @@ public class ProjectService {
         Project project = Project.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .status(ProjectStatus.IDEA_GENERATED)
+                .status(ProjectStatus.STORYBOARD_GENERATED)
                 .build();
         Project saved = projectRepository.save(project);
         return getProjectDetail(saved.getId());
@@ -52,7 +52,7 @@ public class ProjectService {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found with id: " + id));
 
-        List<PromptHistoryResponse> prompts = promptHistoryRepository.findByProjectIdOrderByVersionDesc(id).stream()
+        List<PromptHistoryResponse> prompts = promptHistoryRepository.findByProjectIdOrderByCutOrderAscVersionDesc(id).stream()
                 .map(PromptHistoryResponse::from)
                 .collect(Collectors.toList());
 
@@ -64,27 +64,28 @@ public class ProjectService {
     }
 
     @Transactional
-    public PromptHistoryResponse generateImagePrompt(Long projectId) {
+    public PromptHistoryResponse generateImagePrompt(Long projectId, Integer cutOrder) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
 
-        PromptHistory prompt = agent1Service.generateAndSaveImagePrompt(project, project.getDescription());
+        String promptContext = "Generate for Cut " + cutOrder + " based on this storyboard:\n" + project.getDescription();
+        PromptHistory prompt = agent1Service.generateAndSaveImagePrompt(project, cutOrder, promptContext);
         PromptHistory saved = promptHistoryRepository.save(prompt);
 
-        project.updateStatus(ProjectStatus.IMAGE_PROMPT_GENERATED);
+        project.updateStatus(ProjectStatus.IMAGE_GENERATION_IN_PROGRESS);
         return PromptHistoryResponse.from(saved);
     }
 
     @Transactional
-    public PromptHistoryResponse handleImagePromptFeedback(Long projectId, String feedback) {
+    public PromptHistoryResponse handleImagePromptFeedback(Long projectId, Integer cutOrder, String feedback) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
 
-        PromptHistory latest = promptHistoryRepository.findFirstByProjectIdAndTypeOrderByVersionDesc(projectId, PromptType.IMAGE_PROMPT)
+        PromptHistory latest = promptHistoryRepository.findFirstByProjectIdAndCutOrderAndTypeOrderByVersionDesc(projectId, cutOrder, PromptType.IMAGE_PROMPT)
                 .orElseThrow(() -> new IllegalArgumentException("No existing image prompt found for feedback"));
 
-        String updatedScript = project.getDescription() + "\n\nUser Feedback: " + feedback;
-        PromptHistory newPrompt = agent1Service.generateAndSaveImagePrompt(project, updatedScript);
+        String updatedScript = "Storyboard:\n" + project.getDescription() + "\n\nUser Feedback for Cut " + cutOrder + ": " + feedback;
+        PromptHistory newPrompt = agent1Service.generateAndSaveImagePrompt(project, cutOrder, updatedScript);
         
         // Increment version
         PromptHistory versionedPrompt = PromptHistory.builder()
@@ -92,6 +93,7 @@ public class ProjectService {
                 .type(PromptType.IMAGE_PROMPT)
                 .content(newPrompt.getContent())
                 .negativeContent(newPrompt.getNegativeContent())
+                .cutOrder(cutOrder)
                 .version(latest.getVersion() + 1)
                 .isApproved(false)
                 .build();
@@ -101,7 +103,7 @@ public class ProjectService {
     }
 
     @Transactional
-    public ProjectDetailResponse approveImagePrompt(Long projectId, Long promptId) {
+    public ProjectDetailResponse approveImagePrompt(Long projectId, Integer cutOrder, Long promptId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
 
@@ -109,35 +111,37 @@ public class ProjectService {
                 .orElseThrow(() -> new IllegalArgumentException("Prompt not found: " + promptId));
 
         prompt.approve();
+        // Status updates should check if ALL cuts are approved, but for now just leave it or set IMAGE_APPROVED.
         project.updateStatus(ProjectStatus.IMAGE_APPROVED);
 
         return getProjectDetail(projectId);
     }
 
     @Transactional
-    public PromptHistoryResponse generateVideoPrompt(Long projectId) {
+    public PromptHistoryResponse generateVideoPrompt(Long projectId, Integer cutOrder) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
 
-        PromptHistory approvedImagePrompt = promptHistoryRepository.findFirstByProjectIdAndTypeOrderByVersionDesc(projectId, PromptType.IMAGE_PROMPT)
+        PromptHistory approvedImagePrompt = promptHistoryRepository.findFirstByProjectIdAndCutOrderAndTypeOrderByVersionDesc(projectId, cutOrder, PromptType.IMAGE_PROMPT)
                 .orElseThrow(() -> new IllegalArgumentException("Approved image prompt required before generating video prompt"));
 
-        PromptHistory videoPrompt = agent2Service.generateAndSaveVideoPrompt(project, project.getDescription(), approvedImagePrompt.getContent());
+        String cutContext = "Storyboard:\n" + project.getDescription() + "\n\nGenerate motion prompt for Cut " + cutOrder;
+        PromptHistory videoPrompt = agent2Service.generateAndSaveVideoPrompt(project, cutOrder, cutContext, approvedImagePrompt.getContent());
         PromptHistory saved = promptHistoryRepository.save(videoPrompt);
 
-        project.updateStatus(ProjectStatus.VIDEO_PROMPT_GENERATED);
+        project.updateStatus(ProjectStatus.VIDEO_GENERATION_IN_PROGRESS);
         return PromptHistoryResponse.from(saved);
     }
 
     @Transactional
-    public void triggerVideoGeneration(Long projectId) {
+    public void triggerVideoGeneration(Long projectId, Integer cutOrder) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
 
-        PromptHistory videoPrompt = promptHistoryRepository.findFirstByProjectIdAndTypeOrderByVersionDesc(projectId, PromptType.VIDEO_PROMPT)
+        PromptHistory videoPrompt = promptHistoryRepository.findFirstByProjectIdAndCutOrderAndTypeOrderByVersionDesc(projectId, cutOrder, PromptType.VIDEO_PROMPT)
                 .orElseThrow(() -> new IllegalArgumentException("Video prompt required before video generation"));
 
-        project.updateStatus(ProjectStatus.VIDEO_GENERATING);
+        project.updateStatus(ProjectStatus.VIDEO_GENERATION_IN_PROGRESS);
         videoGenerationService.generateVideoAsync(project, videoPrompt);
     }
 }

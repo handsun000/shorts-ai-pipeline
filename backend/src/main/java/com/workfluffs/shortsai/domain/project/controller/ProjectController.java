@@ -40,37 +40,39 @@ public class ProjectController {
         return ApiResponse.success(project);
     }
 
-    @PostMapping("/{id}/image-prompt")
-    public ApiResponse<PromptHistoryResponse> generateImagePrompt(@PathVariable Long id) {
-        PromptHistoryResponse response = projectService.generateImagePrompt(id);
+    @PostMapping("/{id}/cuts/{cutOrder}/image-prompt")
+    public ApiResponse<PromptHistoryResponse> generateImagePrompt(@PathVariable Long id, @PathVariable Integer cutOrder) {
+        PromptHistoryResponse response = projectService.generateImagePrompt(id, cutOrder);
         return ApiResponse.success("Image prompt generated", response);
     }
 
-    @PostMapping("/{id}/image-prompt/feedback")
+    @PostMapping("/{id}/cuts/{cutOrder}/image-prompt/feedback")
     public ApiResponse<PromptHistoryResponse> handleImagePromptFeedback(
             @PathVariable Long id,
+            @PathVariable Integer cutOrder,
             @Valid @RequestBody PromptFeedbackRequest request) {
-        PromptHistoryResponse response = projectService.handleImagePromptFeedback(id, request.getFeedback());
+        PromptHistoryResponse response = projectService.handleImagePromptFeedback(id, cutOrder, request.getFeedback());
         return ApiResponse.success("Image prompt regenerated with feedback", response);
     }
 
-    @PostMapping("/{id}/approve-image/{promptId}")
+    @PostMapping("/{id}/cuts/{cutOrder}/approve-image/{promptId}")
     public ApiResponse<ProjectDetailResponse> approveImagePrompt(
             @PathVariable Long id,
+            @PathVariable Integer cutOrder,
             @PathVariable Long promptId) {
-        ProjectDetailResponse response = projectService.approveImagePrompt(id, promptId);
+        ProjectDetailResponse response = projectService.approveImagePrompt(id, cutOrder, promptId);
         return ApiResponse.success("Image prompt approved", response);
     }
 
-    @PostMapping("/{id}/video-prompt")
-    public ApiResponse<PromptHistoryResponse> generateVideoPrompt(@PathVariable Long id) {
-        PromptHistoryResponse response = projectService.generateVideoPrompt(id);
+    @PostMapping("/{id}/cuts/{cutOrder}/video-prompt")
+    public ApiResponse<PromptHistoryResponse> generateVideoPrompt(@PathVariable Long id, @PathVariable Integer cutOrder) {
+        PromptHistoryResponse response = projectService.generateVideoPrompt(id, cutOrder);
         return ApiResponse.success("Video prompt generated", response);
     }
 
-    @PostMapping("/{id}/generate-video")
-    public ApiResponse<String> triggerVideoGeneration(@PathVariable Long id) {
-        projectService.triggerVideoGeneration(id);
+    @PostMapping("/{id}/cuts/{cutOrder}/generate-video")
+    public ApiResponse<String> triggerVideoGeneration(@PathVariable Long id, @PathVariable Integer cutOrder) {
+        projectService.triggerVideoGeneration(id, cutOrder);
         return ApiResponse.success("Video generation triggered. Subscribe to SSE endpoint for status updates.");
     }
 }

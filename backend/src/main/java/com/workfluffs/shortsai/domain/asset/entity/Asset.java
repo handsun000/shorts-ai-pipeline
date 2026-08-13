@@ -37,6 +37,9 @@ public class Asset {
     @JoinColumn(name = "prompt_history_id")
     private PromptHistory promptUsed;
 
+    @Column(nullable = false)
+    private Integer cutOrder;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AssetStatus status;
@@ -50,11 +53,12 @@ public class Asset {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Asset(Project project, AssetType type, String fileUrl, PromptHistory promptUsed, AssetStatus status) {
+    public Asset(Project project, AssetType type, String fileUrl, PromptHistory promptUsed, Integer cutOrder, AssetStatus status) {
         this.project = project;
         this.type = type;
         this.fileUrl = fileUrl;
         this.promptUsed = promptUsed;
+        this.cutOrder = cutOrder != null ? cutOrder : (promptUsed != null ? promptUsed.getCutOrder() : 1);
         this.status = status != null ? status : AssetStatus.PENDING;
     }
 

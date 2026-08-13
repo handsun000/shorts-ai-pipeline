@@ -11,6 +11,6 @@ import java.util.Optional;
 
 @Repository
 public interface PromptHistoryRepository extends JpaRepository<PromptHistory, Long> {
-    List<PromptHistory> findByProjectIdOrderByVersionDesc(Long projectId);
-    Optional<PromptHistory> findFirstByProjectIdAndTypeOrderByVersionDesc(Long projectId, PromptType type);
+    List<PromptHistory> findByProjectIdOrderByCutOrderAscVersionDesc(Long projectId);
+    Optional<PromptHistory> findFirstByProjectIdAndCutOrderAndTypeOrderByVersionDesc(Long projectId, Integer cutOrder, PromptType type);
 }

@@ -15,8 +15,8 @@ public class Agent2Service {
     private final VideoPromptAgent videoPromptAgent;
 
     @Transactional
-    public PromptHistory generateAndSaveVideoPrompt(Project project, String scriptContent, String approvedImagePrompt) {
-        String fullPrompt = videoPromptAgent.generateVideoPrompt(scriptContent, approvedImagePrompt);
+    public PromptHistory generateAndSaveVideoPrompt(Project project, Integer cutOrder, String cutScriptContent, String approvedImagePrompt) {
+        String fullPrompt = videoPromptAgent.generateVideoPrompt(cutScriptContent, approvedImagePrompt);
         
         String positivePrompt = fullPrompt;
         String negativePrompt = "";
@@ -39,6 +39,7 @@ public class Agent2Service {
                 .type(PromptType.VIDEO_PROMPT)
                 .content(positivePrompt)
                 .negativeContent(negativePrompt)
+                .cutOrder(cutOrder)
                 .version(1)
                 .isApproved(false)
                 .build();

@@ -14,6 +14,7 @@ public class PromptHistoryResponse {
     private PromptType type;
     private String content;
     private String negativeContent;
+    private Integer cutOrder;
     private Integer version;
     private Boolean isApproved;
     private LocalDateTime createdAt;
@@ -24,6 +25,7 @@ public class PromptHistoryResponse {
                 .type(prompt.getType())
                 .content(prompt.getContent())
                 .negativeContent(prompt.getNegativeContent())
+                .cutOrder(prompt.getCutOrder())
                 .version(prompt.getVersion())
                 .isApproved(prompt.getIsApproved())
                 .createdAt(prompt.getCreatedAt())

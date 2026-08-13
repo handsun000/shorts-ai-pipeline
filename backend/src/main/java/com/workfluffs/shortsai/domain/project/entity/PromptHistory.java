@@ -34,6 +34,9 @@ public class PromptHistory {
     private String negativeContent;
 
     @Column(nullable = false)
+    private Integer cutOrder;
+
+    @Column(nullable = false)
     private Integer version;
 
     @Column(nullable = false)
@@ -44,11 +47,12 @@ public class PromptHistory {
     private LocalDateTime createdAt;
 
     @Builder
-    public PromptHistory(Project project, PromptType type, String content, String negativeContent, Integer version, Boolean isApproved) {
+    public PromptHistory(Project project, PromptType type, String content, String negativeContent, Integer cutOrder, Integer version, Boolean isApproved) {
         this.project = project;
         this.type = type;
         this.content = content;
         this.negativeContent = negativeContent;
+        this.cutOrder = cutOrder != null ? cutOrder : 1;
         this.version = version != null ? version : 1;
         this.isApproved = isApproved != null ? isApproved : false;
     }

@@ -15,16 +15,15 @@ import {
   ChevronRight,
   AlertTriangle,
   Radio,
-  FileVideo
+  FileVideo,
+  ListVideo
 } from "lucide-react";
 
 interface Idea {
   id: number;
-  title: String;
-  hook: string;
-  instinct: string;
-  punchline: string;
-  visuals: string;
+  title: string;
+  concept: string;
+  cuts: { order: number; description: string }[];
 }
 
 interface PromptHistory {
@@ -35,175 +34,209 @@ interface PromptHistory {
   isApproved: boolean;
 }
 
+interface CutState {
+  order: number;
+  description: string;
+  imagePrompt: PromptHistory | null;
+  imageFeedback: string;
+  isImageLoading: boolean;
+  isImageApproved: boolean;
+  videoPrompt: PromptHistory | null;
+  videoFeedback: string;
+  isVideoLoading: boolean;
+  isVideoApproved: boolean;
+  sseStatus: "IDLE" | "CONNECTING" | "GENERATING" | "SUCCESS" | "FAILED";
+  videoProgress: number;
+  videoUrl: string | null;
+}
+
 export default function Dashboard() {
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [topic, setTopic] = useState<string>("향수 매장 직원 baby skunk");
+  const [topic, setTopic] = useState<string>("러시 아워를 맞아 8개의 다리로 화려하게 커피를 만드는 스타 바리스타 문어");
   const [isGeneratingIdeas, setIsGeneratingIdeas] = useState<boolean>(false);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
 
-  // Project state
   const [projectId, setProjectId] = useState<number | null>(null);
-  
-  // Step 2: Image Prompt state
-  const [imagePrompt, setImagePrompt] = useState<PromptHistory | null>(null);
-  const [imageFeedback, setImageFeedback] = useState<string>("");
-  const [isPromptLoading, setIsPromptLoading] = useState<boolean>(false);
+  const [cuts, setCuts] = useState<CutState[]>([]);
+  const [activeCutOrder, setActiveCutOrder] = useState<number>(1);
 
-  // Step 3: Video Prompt state
-  const [videoPrompt, setVideoPrompt] = useState<PromptHistory | null>(null);
-  const [videoFeedback, setVideoFeedback] = useState<string>("");
-
-  // Step 4: SSE & Video status
-  const [sseStatus, setSseStatus] = useState<"IDLE" | "CONNECTING" | "GENERATING" | "SUCCESS" | "FAILED">("IDLE");
-  const [videoProgress, setVideoProgress] = useState<number>(0);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-
-  // Initial preset ideas for quick test
   const handleGenerateIdeas = async () => {
     setIsGeneratingIdeas(true);
-    try {
-      const res = await fetch("http://localhost:8080/api/v1/projects/ideas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        console.log("Idea generated from backend:", data);
-      }
-    } catch (e) {
-      console.log("Backend offline or local dev mode - using fallback AI presets");
-    }
-
+    // Simulating backend call for 4-cut storyboard
     setTimeout(() => {
       setIdeas([
         {
           id: 1,
-          title: "향수 매장 baby skunk 직원의 킹받는 폭발",
-          hook: "시청자(손님) 시점에서 럭셔리 향수 매장의 아기 스컹크 직원이 고급 향수병과 테스터를 들고 우아하게 미소 지음.",
-          instinct: "시청자에게 향수를 시향해 주다가 갑자기 재채기가 터져 엉뚱한 본능 발현.",
-          punchline: "재채기 직후 꼬리 밑에서 형광 네온 그린 가스가 화면 전면을 뒤덮으며 매장이 대환장 파티가 됨.",
-          visuals: "아기 스컹크, 검은 나비넥타이, 럭셔리 조끼, 픽사 3D 스타일, 9:16 비율"
+          title: "스타 바리스타 문어의 러시 아워 대환장 파티",
+          concept: "8개의 다리로 화려하게 커피를 만드는 문어 바리스타. 1인칭 손님 시점.",
+          cuts: [
+            { order: 1, description: "8개의 다리로 컵 홀더 씌우기, 에스프레소 샷 뽑기, 우유 스팀하기를 동시에 해내는 우아한 모습." },
+            { order: 2, description: "주문 기계에서 영수증이 영구차처럼 끝없이 뿜어져 나옴. 문어의 눈동자가 사시가 되며 땀을 뻘뻘 흘림." },
+            { order: 3, description: "극도의 스트레스를 받은 문어가 다리를 꼬아 샷 잔을 떨어뜨리고 먹물을 분출함." },
+            { order: 4, description: "먹물을 뒤집어쓴 손님(카메라)과 당황하여 다리로 머리를 감싸는 문어." }
+          ]
         },
         {
           id: 2,
           title: "항공기 기장 펭귄의 연어 참기 미션",
-          hook: "기장 제복을 입은 펭귄 기장이 진지한 표정으로 조종간을 잡고 시청자를 돌아봄.",
-          instinct: "기내식 연어 냄새를 맡고 참지 못해 조종석에서 털을 뿜으며 연어를 향해 돌진.",
-          punchline: "비행기가 요동치며 조종실 전체가 연어 파티로 난장판이 됨.",
-          visuals: "황제펭귄 기장, 조종사 모자, 3D 가죽 의장, 9:16 비율"
-        },
-        {
-          id: 3,
-          title: "수술실 나무늘보 의사의 초슬로우 라이프",
-          hook: "수술복을 입은 나무늘보 의사가 청진기를 들고 손님을 천천히 진찰함.",
-          instinct: "긴급 상황인데 동작이 초당 0.1프레임 수준으로 느려지며 재채기 준비만 10초 걸림.",
-          punchline: "결국 재채기를 하지 못하고 잠들어버리는 킹받는 결말.",
-          visuals: "나무늘보 의사, 수술모자, 청진기, 3D 애니메이션 스타일"
+          concept: "기장 제복을 입은 펭귄 기장이 조종실에서 근무하는 모습.",
+          cuts: [
+            { order: 1, description: "기장 제복을 입은 펭귄이 진지한 표정으로 조종간을 잡고 시청자를 돌아봄." },
+            { order: 2, description: "스튜어디스가 기내식으로 연어를 가져옴. 펭귄 기장의 동공이 흔들림." },
+            { order: 3, description: "본능을 참지 못하고 부리로 연어를 낚아채며 난동을 부림." },
+            { order: 4, description: "비행기가 흔들리고 조종실 전체가 연어 파티로 난장판이 됨." }
+          ]
         }
       ]);
       setIsGeneratingIdeas(false);
-    }, 1200);
+    }, 1500);
   };
 
   const handleSelectIdea = (idea: Idea) => {
     setSelectedIdea(idea);
     setProjectId(Date.now());
+    
+    // Initialize cuts
+    const initialCuts: CutState[] = idea.cuts.map(c => ({
+      order: c.order,
+      description: c.description,
+      imagePrompt: null,
+      imageFeedback: "",
+      isImageLoading: false,
+      isImageApproved: false,
+      videoPrompt: null,
+      videoFeedback: "",
+      isVideoLoading: false,
+      isVideoApproved: false,
+      sseStatus: "IDLE",
+      videoProgress: 0,
+      videoUrl: null
+    }));
+    setCuts(initialCuts);
     setCurrentStep(2);
-    handleGenerateImagePrompt(idea);
+    setActiveCutOrder(1);
+    
+    // Auto-generate prompts for all cuts initially
+    initialCuts.forEach(c => handleGenerateImagePrompt(c.order, c.description));
   };
 
-  const handleGenerateImagePrompt = (idea: Idea) => {
-    setIsPromptLoading(true);
-    setTimeout(() => {
-      setImagePrompt({
-        id: 101,
-        version: 1,
-        content: `First-person POV from a customer's eyes looking directly at a cute fluffy baby skunk employee. The skunk is standing behind a luxury glowing glass perfume counter. The skunk is wearing a black bowtie and a luxury black vest, smiling elegantly, holding a fancy glass perfume bottle in one paw and a white tester paper in the other paw. 3D animation style, Pixar style, highly detailed, cinematic warm lighting. --ar 9:16`,
-        negativeContent: `No display stands, no text, no letters, no human figures in the background, empty store background.`,
-        isApproved: false
-      });
-      setIsPromptLoading(false);
-    }, 1500);
+  const updateCut = (order: number, updates: Partial<CutState>) => {
+    setCuts(prev => prev.map(c => c.order === order ? { ...c, ...updates } : c));
   };
 
-  const handleImageFeedback = () => {
-    if (!imagePrompt || !imageFeedback) return;
-    setIsPromptLoading(true);
+  const activeCut = cuts.find(c => c.order === activeCutOrder);
+
+  // STEP 2: Image Prompt Generation
+  const handleGenerateImagePrompt = (order: number, description: string) => {
+    updateCut(order, { isImageLoading: true });
     setTimeout(() => {
-      setImagePrompt({
-        id: imagePrompt.id,
-        version: imagePrompt.version + 1,
-        content: imagePrompt.content + ` [Refined: ${imageFeedback}]`,
-        negativeContent: imagePrompt.negativeContent + `, no extra clutter`,
-        isApproved: false
+      updateCut(order, {
+        imagePrompt: {
+          id: Date.now() + order,
+          version: 1,
+          content: `First-person POV. ${description} 3D animation style, Pixar style, highly detailed, cinematic warm lighting. --ar 9:16`,
+          negativeContent: `No text, no clutter, high quality`,
+          isApproved: false
+        },
+        isImageLoading: false
       });
-      setImageFeedback("");
-      setIsPromptLoading(false);
+    }, 1500 + order * 500);
+  };
+
+  const handleImageFeedback = (order: number) => {
+    const cut = cuts.find(c => c.order === order);
+    if (!cut || !cut.imagePrompt || !cut.imageFeedback) return;
+    
+    updateCut(order, { isImageLoading: true });
+    setTimeout(() => {
+      updateCut(order, {
+        imagePrompt: {
+          ...cut.imagePrompt!,
+          version: cut.imagePrompt!.version + 1,
+          content: cut.imagePrompt!.content + ` [Refined: ${cut.imageFeedback}]`,
+        },
+        imageFeedback: "",
+        isImageLoading: false
+      });
     }, 1200);
   };
 
-  const handleApproveImagePrompt = () => {
-    if (imagePrompt) {
-      setImagePrompt({ ...imagePrompt, isApproved: true });
+  const handleApproveImagePrompt = (order: number) => {
+    updateCut(order, { isImageApproved: true });
+    
+    // Check if ALL cuts are approved to move to Step 3
+    const allApproved = cuts.map(c => c.order === order ? true : c.isImageApproved).every(Boolean);
+    if (allApproved) {
       setCurrentStep(3);
-      handleGenerateVideoPrompt();
+      setActiveCutOrder(1);
+      cuts.forEach(c => handleGenerateVideoPrompt(c.order));
+    } else {
+      // Move to next unapproved cut
+      const nextCut = cuts.find(c => c.order !== order && !c.isImageApproved);
+      if (nextCut) setActiveCutOrder(nextCut.order);
     }
   };
 
-  const handleGenerateVideoPrompt = () => {
-    setIsPromptLoading(true);
+  // STEP 3: Video Prompt Generation
+  const handleGenerateVideoPrompt = (order: number) => {
+    updateCut(order, { isVideoLoading: true });
     setTimeout(() => {
-      setVideoPrompt({
-        id: 201,
-        version: 1,
-        content: `First-person POV. Dynamic action! The baby skunk strongly sneezes by jerking its head down. IMMEDIATELY after the sneeze, a massive, thick glowing neon green gas erupts EXCLUSIVELY and ONLY from its backside (under the raised tail) directly towards the camera lens. The green gas explodes from the butt area and completely engulfs the screen.`,
-        negativeContent: `NO gas, NO smoke, and NO mist should come out from the skunk's neck, mouth, or face.`,
-        isApproved: false
+      updateCut(order, {
+        videoPrompt: {
+          id: Date.now() + 1000 + order,
+          version: 1,
+          content: `Dynamic action! Cut ${order}. CRITICAL WARNING: No sudden light flashes. IMMEDIATELY a big effect happens.`,
+          negativeContent: `No sudden light flashes`,
+          isApproved: false
+        },
+        isVideoLoading: false
       });
-      setIsPromptLoading(false);
-    }, 1500);
+    }, 1500 + order * 500);
   };
 
-  const handleVideoFeedback = () => {
-    if (!videoPrompt || !videoFeedback) return;
-    setIsPromptLoading(true);
+  const handleVideoFeedback = (order: number) => {
+    const cut = cuts.find(c => c.order === order);
+    if (!cut || !cut.videoPrompt || !cut.videoFeedback) return;
+    
+    updateCut(order, { isVideoLoading: true });
     setTimeout(() => {
-      setVideoPrompt({
-        id: videoPrompt.id,
-        version: videoPrompt.version + 1,
-        content: videoPrompt.content + ` [Refined Motion: ${videoFeedback}]`,
-        negativeContent: videoPrompt.negativeContent,
-        isApproved: false
+      updateCut(order, {
+        videoPrompt: {
+          ...cut.videoPrompt!,
+          version: cut.videoPrompt!.version + 1,
+          content: cut.videoPrompt!.content + ` [Refined Motion: ${cut.videoFeedback}]`,
+        },
+        videoFeedback: "",
+        isVideoLoading: false
       });
-      setVideoFeedback("");
-      setIsPromptLoading(false);
     }, 1200);
   };
 
-  const handleTriggerVideoGeneration = () => {
-    if (videoPrompt) {
-      setVideoPrompt({ ...videoPrompt, isApproved: true });
-      setCurrentStep(4);
-      setSseStatus("CONNECTING");
-      
-      // Simulate SSE events
-      setTimeout(() => {
-        setSseStatus("GENERATING");
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += 15;
-          setVideoProgress(Math.min(progress, 100));
-          if (progress >= 100) {
-            clearInterval(interval);
-            setSseStatus("SUCCESS");
-            setVideoUrl("/sample_workfluffs_skunk.mp4");
-          }
-        }, 1000);
-      }, 1500);
-    }
+  const handleTriggerVideoGeneration = (order: number) => {
+    updateCut(order, { isVideoApproved: true, sseStatus: "CONNECTING" });
+    
+    setTimeout(() => {
+      updateCut(order, { sseStatus: "GENERATING" });
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 20;
+        updateCut(order, { videoProgress: Math.min(progress, 100) });
+        if (progress >= 100) {
+          clearInterval(interval);
+          updateCut(order, { sseStatus: "SUCCESS", videoUrl: `/sample_cut_${order}.mp4` });
+          
+          // Check if all are success
+          setCuts(prev => {
+            const allSuccess = prev.every(c => c.sseStatus === "SUCCESS");
+            if (allSuccess) {
+               // You can trigger step 4 here if you want
+            }
+            return prev;
+          });
+        }
+      }, 1000);
+    }, 1000);
   };
 
   return (
@@ -221,11 +254,6 @@ export default function Dashboard() {
             <p className="text-xs text-gray-400">@WorkFluffs 3D Animation Shorts Multi-Agent Pipeline</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 bg-gray-900/80 border border-gray-800 px-4 py-2 rounded-full text-xs font-medium text-purple-300">
-          <Bot className="w-4 h-4 text-purple-400 animate-pulse" />
-          <span>LangChain4j Orchestrator Active</span>
-        </div>
       </header>
 
       {/* Workflow Stepper Bar */}
@@ -233,9 +261,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-4 gap-4">
           {[
             { step: 1, label: "소재 기획", icon: Wand2 },
-            { step: 2, label: "이미지 프롬프트", icon: ImageIcon },
-            { step: 3, label: "모션 프롬프트", icon: Film },
-            { step: 4, label: "영상 생성 (SSE)", icon: Play }
+            { step: 2, label: "이미지 프롬프트 (컷별)", icon: ImageIcon },
+            { step: 3, label: "모션 프롬프트 (컷별)", icon: Film },
+            { step: 4, label: "영상 병합", icon: Play }
           ].map((s) => {
             const Icon = s.icon;
             const isActive = currentStep === s.step;
@@ -264,69 +292,52 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="max-w-6xl mx-auto">
+      <main className="max-w-6xl mx-auto space-y-6">
         {/* Step 1: Idea Generation */}
         {currentStep === 1 && (
           <div className="glass-panel p-8 rounded-2xl border border-gray-800 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                  Step 1: 소재 및 쇼츠 아이디어 기획 (Agent 1)
-                </h2>
-                <p className="text-sm text-gray-400 mt-1">
-                  동물 직업 캐릭터와 동물적 본능이 대비되는 코믹한 쇼츠 주제를 도출합니다.
-                </p>
-              </div>
-            </div>
-
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              Step 1: 멀티 컷 스토리보드 도출
+            </h2>
             <div className="flex gap-3">
               <input
-                id="topic-input"
                 type="text"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="주제 키워드를 입력하세요 (예: 향수 매장 스컹크)"
                 className="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500"
               />
               <button
-                id="generate-ideas-btn"
                 onClick={handleGenerateIdeas}
                 disabled={isGeneratingIdeas}
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium px-6 py-3 rounded-xl flex items-center gap-2 text-sm transition-all disabled:opacity-50"
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium px-6 py-3 rounded-xl flex items-center gap-2 text-sm transition-all"
               >
                 {isGeneratingIdeas ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                <span>AI 아이디어 3종 도출</span>
+                <span>스토리보드 도출</span>
               </button>
             </div>
 
             {ideas.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                 {ideas.map((idea) => (
-                  <div 
-                    key={idea.id}
-                    className="glass-card p-5 rounded-xl border border-gray-800 hover:border-purple-500/50 transition-all flex flex-col justify-between"
-                  >
-                    <div className="space-y-3">
-                      <div className="inline-block px-3 py-1 bg-purple-900/50 border border-purple-700/50 rounded-full text-xs text-purple-300 font-semibold">
-                        아이디어 #{idea.id}
-                      </div>
+                  <div key={idea.id} className="glass-card p-5 rounded-xl border border-gray-800 hover:border-purple-500/50 transition-all flex flex-col justify-between space-y-4">
+                    <div>
                       <h3 className="font-bold text-white text-base">{idea.title}</h3>
-                      <div className="text-xs space-y-2 text-gray-300">
-                        <p><span className="text-purple-400 font-semibold">[1인칭 훅]:</span> {idea.hook}</p>
-                        <p><span className="text-amber-400 font-semibold">[본능 발현]:</span> {idea.instinct}</p>
-                        <p><span className="text-rose-400 font-semibold">[펀치라인]:</span> {idea.punchline}</p>
-                      </div>
+                      <p className="text-xs text-purple-400 mt-1">{idea.concept}</p>
                     </div>
-
+                    <div className="space-y-2">
+                      {idea.cuts.map(cut => (
+                        <div key={cut.order} className="text-xs text-gray-300 bg-gray-900/50 p-2 rounded">
+                          <span className="font-bold text-white mr-2">컷 {cut.order}:</span>
+                          {cut.description}
+                        </div>
+                      ))}
+                    </div>
                     <button
-                      id={`select-idea-${idea.id}`}
                       onClick={() => handleSelectIdea(idea)}
-                      className="mt-5 w-full py-2.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border border-purple-500/30"
+                      className="w-full py-2.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
                     >
-                      <span>이 아이디어 선택</span>
-                      <ChevronRight className="w-4 h-4" />
+                      이 스토리보드 선택
                     </button>
                   </div>
                 ))}
@@ -335,227 +346,156 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Step 2: Image Prompt & Human Feedback */}
-        {currentStep === 2 && (
-          <div className="glass-panel p-8 rounded-2xl border border-gray-800 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-indigo-400" />
-                  Step 2: 9:16 이미지 프롬프트 생성 & 피드백 (Agent 1)
-                </h2>
-                <p className="text-sm text-gray-400 mt-1">
-                  선택한 소재: <span className="text-purple-300 font-semibold">{selectedIdea?.title}</span>
-                </p>
+        {/* Step 2 & 3: Cut Timeline Split View */}
+        {(currentStep === 2 || currentStep === 3) && selectedIdea && (
+          <div className="grid grid-cols-12 gap-6">
+            
+            {/* Timeline Sidebar */}
+            <div className="col-span-3 space-y-3">
+              <div className="bg-gray-900/80 p-4 rounded-xl border border-gray-800">
+                <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                  <ListVideo className="w-4 h-4 text-purple-400" />
+                  스토리보드 타임라인
+                </h3>
+                <div className="space-y-2">
+                  {cuts.map(cut => {
+                    const isActive = cut.order === activeCutOrder;
+                    const isApproved = currentStep === 2 ? cut.isImageApproved : cut.isVideoApproved;
+                    return (
+                      <button
+                        key={cut.order}
+                        onClick={() => setActiveCutOrder(cut.order)}
+                        className={`w-full text-left p-3 rounded-lg border transition-all ${
+                          isActive ? "bg-purple-900/30 border-purple-500" : "bg-gray-950 border-gray-800 hover:border-gray-600"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className={`text-xs font-bold ${isActive ? "text-purple-300" : "text-gray-400"}`}>
+                            Cut {cut.order}
+                          </span>
+                          {isApproved && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{cut.description}</p>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-              {imagePrompt && (
-                <span className="px-3 py-1 bg-indigo-900/60 border border-indigo-700/60 rounded-full text-xs font-mono text-indigo-300">
-                  Version {imagePrompt.version}
-                </span>
+            </div>
+
+            {/* Cut Detail Main Area */}
+            <div className="col-span-9 glass-panel p-6 rounded-2xl border border-gray-800">
+              <div className="mb-6 border-b border-gray-800 pb-4 flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Cut {activeCutOrder} 상세 에디터</h2>
+                  <p className="text-sm text-gray-400 mt-1">{activeCut?.description}</p>
+                </div>
+                {currentStep === 2 ? (
+                  <span className="px-3 py-1 bg-indigo-900/60 text-indigo-300 text-xs rounded-full border border-indigo-700/60">이미지 피드백 단계</span>
+                ) : (
+                  <span className="px-3 py-1 bg-blue-900/60 text-blue-300 text-xs rounded-full border border-blue-700/60">비디오 모션 피드백 단계</span>
+                )}
+              </div>
+
+              {/* Step 2 Content */}
+              {currentStep === 2 && activeCut && (
+                <div className="space-y-6">
+                  {activeCut.isImageLoading ? (
+                    <div className="py-12 text-center text-purple-400 animate-pulse text-sm">프롬프트 처리 중...</div>
+                  ) : activeCut.imagePrompt ? (
+                    <div className="space-y-4">
+                      <div className="bg-gray-950 p-4 rounded-xl border border-gray-800">
+                        <div className="text-xs font-bold text-green-400 mb-2">Image Prompt (Version {activeCut.imagePrompt.version})</div>
+                        <p className="text-sm text-gray-300 font-mono">{activeCut.imagePrompt.content}</p>
+                      </div>
+                      
+                      {!activeCut.isImageApproved && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={activeCut.imageFeedback}
+                            onChange={(e) => updateCut(activeCut.order, { imageFeedback: e.target.value })}
+                            placeholder="이미지 수정 요청..."
+                            className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white"
+                          />
+                          <button
+                            onClick={() => handleImageFeedback(activeCut.order)}
+                            className="bg-purple-900 hover:bg-purple-800 text-purple-200 px-4 py-2 rounded-lg text-xs"
+                          >
+                            피드백 반영
+                          </button>
+                          <button
+                            onClick={() => handleApproveImagePrompt(activeCut.order)}
+                            className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5"/> 승인
+                          </button>
+                        </div>
+                      )}
+                      {activeCut.isImageApproved && (
+                        <div className="text-sm text-green-400 font-semibold flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4"/> 이 컷의 이미지가 승인되었습니다.
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Step 3 Content */}
+              {currentStep === 3 && activeCut && (
+                <div className="space-y-6">
+                  {activeCut.isVideoLoading ? (
+                    <div className="py-12 text-center text-blue-400 animate-pulse text-sm">비디오 프롬프트 생성 중...</div>
+                  ) : activeCut.videoPrompt ? (
+                    <div className="space-y-4">
+                      <div className="bg-gray-950 p-4 rounded-xl border border-gray-800">
+                        <div className="text-xs font-bold text-blue-400 mb-2">Video Motion Prompt (Version {activeCut.videoPrompt.version})</div>
+                        <p className="text-sm text-gray-300 font-mono">{activeCut.videoPrompt.content}</p>
+                      </div>
+                      
+                      {!activeCut.isVideoApproved ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={activeCut.videoFeedback}
+                            onChange={(e) => updateCut(activeCut.order, { videoFeedback: e.target.value })}
+                            placeholder="모션 수정 요청..."
+                            className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-xs text-white"
+                          />
+                          <button
+                            onClick={() => handleVideoFeedback(activeCut.order)}
+                            className="bg-blue-900 hover:bg-blue-800 text-blue-200 px-4 py-2 rounded-lg text-xs"
+                          >
+                            피드백 반영
+                          </button>
+                          <button
+                            onClick={() => handleTriggerVideoGeneration(activeCut.order)}
+                            className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1"
+                          >
+                            <Play className="w-3.5 h-3.5"/> 영상 생성 (Approve)
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-900/50 p-4 rounded-xl border border-gray-800 space-y-3">
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>Status: {activeCut.sseStatus}</span>
+                            <span>{activeCut.videoProgress}%</span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-950 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-blue-500 to-purple-400 transition-all" style={{ width: `${activeCut.videoProgress}%` }} />
+                          </div>
+                          {activeCut.sseStatus === "SUCCESS" && (
+                            <div className="text-xs text-green-400 font-semibold">비디오 생성 완료!</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               )}
             </div>
 
-            {isPromptLoading ? (
-              <div className="py-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
-                <p className="text-sm text-gray-400">Agent 1이 9:16 극사실적 3D 프롬프트를 작성 중입니다...</p>
-              </div>
-            ) : imagePrompt && (
-              <div className="space-y-6">
-                {/* Positive Prompt Card */}
-                <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-green-400 uppercase tracking-wider">Image Prompt (Positive)</span>
-                    <span className="text-[10px] text-gray-500 font-mono">AR 9:16</span>
-                  </div>
-                  <p className="text-sm font-mono text-gray-200 leading-relaxed bg-gray-900/80 p-3.5 rounded-lg border border-gray-800">
-                    {imagePrompt.content}
-                  </p>
-                </div>
-
-                {/* Negative Prompt Card */}
-                <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400 uppercase tracking-wider">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>Parsed Negative Constraints (CRITICAL)</span>
-                  </div>
-                  <p className="text-sm font-mono text-rose-200/90 leading-relaxed bg-rose-950/20 p-3.5 rounded-lg border border-rose-900/30">
-                    {imagePrompt.negativeContent}
-                  </p>
-                </div>
-
-                {/* Human-in-the-Loop Feedback Input */}
-                <div className="p-5 bg-purple-950/20 rounded-xl border border-purple-900/40 space-y-3">
-                  <label className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-purple-400" />
-                    Human-in-the-Loop 피드백 (수정 요청)
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      id="image-feedback-input"
-                      type="text"
-                      value={imageFeedback}
-                      onChange={(e) => setImageFeedback(e.target.value)}
-                      placeholder="예: 스컹크의 표정을 좀 더 자신감 있게 해주고 배경에 은은한 오로라 조명을 추가해줘"
-                      className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
-                    />
-                    <button
-                      id="submit-image-feedback-btn"
-                      onClick={handleImageFeedback}
-                      disabled={!imageFeedback}
-                      className="bg-purple-900/60 hover:bg-purple-800 text-purple-200 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-40"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>피드백 반영 (재생성)</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    id="approve-image-prompt-btn"
-                    onClick={handleApproveImagePrompt}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-green-900/20 transition-all"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>이미지 프롬프트 최종 승인 (Approve)</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 3: Video Prompt & Human Feedback */}
-        {currentStep === 3 && (
-          <div className="glass-panel p-8 rounded-2xl border border-gray-800 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Film className="w-5 h-5 text-indigo-400" />
-                  Step 3: Google Veo 동영상 모션 프롬프트 생성 (Agent 2)
-                </h2>
-                <p className="text-sm text-gray-400 mt-1">
-                  승인된 이미지 기반으로 다이내믹 모션 및 폭발 액션을 제어합니다.
-                </p>
-              </div>
-            </div>
-
-            {isPromptLoading ? (
-              <div className="py-16 text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
-                <p className="text-sm text-gray-400">Agent 2가 동영상 모션 통제 규칙을 생성 중입니다...</p>
-              </div>
-            ) : videoPrompt && (
-              <div className="space-y-6">
-                <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 space-y-2">
-                  <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Video Motion Prompt</span>
-                  <p className="text-sm font-mono text-gray-200 leading-relaxed bg-gray-900/80 p-3.5 rounded-lg border border-gray-800">
-                    {videoPrompt.content}
-                  </p>
-                </div>
-
-                <div className="bg-gray-950 p-5 rounded-xl border border-gray-800 space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 uppercase tracking-wider">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>Motion Strict Control Rules (CRITICAL WARNING)</span>
-                  </div>
-                  <p className="text-sm font-mono text-amber-200/90 leading-relaxed bg-amber-950/20 p-3.5 rounded-lg border border-amber-900/30">
-                    {videoPrompt.negativeContent}
-                  </p>
-                </div>
-
-                {/* Human-in-the-Loop Feedback Input */}
-                <div className="p-5 bg-purple-950/20 rounded-xl border border-purple-900/40 space-y-3">
-                  <label className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-purple-400" />
-                    모션 피드백 수정
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      id="video-feedback-input"
-                      type="text"
-                      value={videoFeedback}
-                      onChange={(e) => setVideoFeedback(e.target.value)}
-                      placeholder="예: 가스가 터지는 효과 속도를 2배 빠르게 해줘"
-                      className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
-                    />
-                    <button
-                      id="submit-video-feedback-btn"
-                      onClick={handleVideoFeedback}
-                      disabled={!videoFeedback}
-                      className="bg-purple-900/60 hover:bg-purple-800 text-purple-200 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-40"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>모션 수정</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    id="trigger-video-btn"
-                    onClick={handleTriggerVideoGeneration}
-                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-900/20 transition-all"
-                  >
-                    <Play className="w-4 h-4 fill-white" />
-                    <span>영상 생성 시작 (Trigger Video SSE)</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 4: SSE Video Generation & Package Download */}
-        {currentStep === 4 && (
-          <div className="glass-panel p-8 rounded-2xl border border-gray-800 space-y-6 text-center">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-950 border border-green-800 rounded-full text-xs text-green-400 font-mono">
-                <Radio className="w-3.5 h-3.5 animate-pulse text-green-400" />
-                <span>SSE Stream Connected (/api/v1/sse/video-status/{projectId})</span>
-              </div>
-              <h2 className="text-2xl font-bold text-white">Google Veo 비동기 9:16 숏폼 비디오 생성</h2>
-            </div>
-
-            {/* SSE Progress */}
-            <div className="max-w-lg mx-auto space-y-3 py-4">
-              <div className="flex justify-between text-xs font-mono text-gray-400">
-                <span>Status: {sseStatus}</span>
-                <span>{videoProgress}%</span>
-              </div>
-              <div className="w-full h-3 bg-gray-950 rounded-full overflow-hidden border border-gray-800 p-0.5">
-                <div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-green-400 rounded-full transition-all duration-500"
-                  style={{ width: `${videoProgress}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Video Preview Player */}
-            {sseStatus === "SUCCESS" && (
-              <div className="space-y-6 pt-4 animate-fade-in">
-                <div className="relative w-64 h-96 mx-auto bg-gray-950 rounded-2xl overflow-hidden border-2 border-purple-500/50 shadow-2xl flex items-center justify-center">
-                  <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-black/80 flex flex-col items-center justify-center p-6 text-center space-y-3">
-                    <FileVideo className="w-12 h-12 text-purple-400 animate-bounce" />
-                    <p className="text-xs font-bold text-white">WorkFluffs Skunk Sneeze 9:16 Video Ready!</p>
-                    <span className="text-[10px] text-gray-400 font-mono">Path: /uploads/skunk_video.mp4</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-center gap-4">
-                  <a
-                    id="download-video-btn"
-                    href={videoUrl || "#"}
-                    download="WorkFluffs_Shorts_Skunk.mp4"
-                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-8 py-3 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-900/30 transition-all"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>최종 영상 패키지 다운로드</span>
-                  </a>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </main>

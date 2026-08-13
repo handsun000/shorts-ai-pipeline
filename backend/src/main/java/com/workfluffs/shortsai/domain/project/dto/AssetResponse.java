@@ -14,6 +14,8 @@ public class AssetResponse {
     private Long id;
     private AssetType type;
     private String fileUrl;
+    private Integer cutOrder;
+    private Long promptHistoryId;
     private AssetStatus status;
     private LocalDateTime createdAt;
 
@@ -22,6 +24,8 @@ public class AssetResponse {
                 .id(asset.getId())
                 .type(asset.getType())
                 .fileUrl(asset.getFileUrl())
+                .cutOrder(asset.getCutOrder())
+                .promptHistoryId(asset.getPromptUsed() != null ? asset.getPromptUsed().getId() : null)
                 .status(asset.getStatus())
                 .createdAt(asset.getCreatedAt())
                 .build();

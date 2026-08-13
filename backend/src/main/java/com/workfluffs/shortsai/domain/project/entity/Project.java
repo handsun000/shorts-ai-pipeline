@@ -44,7 +44,7 @@ public class Project {
     public Project(String title, String description, ProjectStatus status) {
         this.title = title;
         this.description = description;
-        this.status = status != null ? status : ProjectStatus.IDEA_GENERATED;
+        this.status = status != null ? status : ProjectStatus.STORYBOARD_GENERATED;
     }
 
     public void updateStatus(ProjectStatus status) {
